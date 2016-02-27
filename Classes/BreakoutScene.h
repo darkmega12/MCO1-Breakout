@@ -15,6 +15,8 @@ private:
 	Sprite *mrBall;
 	Sprite *breaker;
 
+	int BALLSTEP = 2;
+
 	bool isLeftPressed;
 	bool isRightPressed;
 	bool isPaused;
@@ -49,6 +51,8 @@ public:
 	void update(float) override;
 
 	void moveBall();
+
+	void checkIfDead();
 
 	BreakoutScene();
 	~BreakoutScene();

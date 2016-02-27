@@ -5,7 +5,7 @@ USING_NS_CC;
 Scene* BreakoutScene::createScene()
 {
 	// 'scene' is an autorelease object
-	auto scene = Scene::create();
+	auto scene = Scene::createWithPhysics();
 
 	// 'layer' is an autorelease object
 	auto layer = BreakoutScene::create();
@@ -101,7 +101,7 @@ void BreakoutScene::initEnvironment()
 	int brickWidth = 80;
 	int brickLength = 25;
 	Sprite* brick;
-
+	
 	for (int i = 0; i < numRows; i++)
 	{
 		for (int j = 0; j < numColumns; j++)
@@ -122,6 +122,7 @@ void BreakoutScene::initEnvironment()
 			}
 			brick->setAnchorPoint(Vec2());
 			brick->setPosition(20 + (5 * (j + 1)) + (j * brickWidth), 605 - (i * brickLength) - (4 * i)); //handles the spacing for the bricks' position
+			_bricks->addObject(brick);
 			this->addChild(brick, 10);
 		}
 	}
@@ -226,23 +227,37 @@ void BreakoutScene::moveBall()
 	{
 		if (move_vertical == verticalDirection::UP)
 		{
-			mrBall->setPosition(currPosition.x - 1, currPosition.y + 1);
+			mrBall->setPosition(currPosition.x - BALLSTEP, currPosition.y + BALLSTEP);
 		}
 		else if (move_vertical == verticalDirection::DOWN)
 		{
-			mrBall->setPosition(currPosition.x - 1, currPosition.y - 1);
+			mrBall->setPosition(currPosition.x - BALLSTEP, currPosition.y - BALLSTEP);
 		}
 	}
 	else if (move_horizontal == horizontalDirection::RIGHT)
 	{
 		if (move_vertical == verticalDirection::UP)
 		{
-			mrBall->setPosition(currPosition.x + 1, currPosition.y + 1);
+			mrBall->setPosition(currPosition.x + BALLSTEP, currPosition.y + BALLSTEP);
 		}
 		else if (move_vertical == verticalDirection::DOWN)
 		{
-			mrBall->setPosition(currPosition.x + 1, currPosition.y - 1);
+			mrBall->setPosition(currPosition.x + BALLSTEP, currPosition.y - BALLSTEP);
 		}
+	}
+}
+
+void BreakoutScene::checkIfDead()
+{
+	Vec2 ballPos = mrBall->getPosition();
+	if (ballPos.y < 150)
+	{
+		pLives->removeLastObject();
+		mrBall->setPosition(450, 300);
+	}
+	if (pLives->count() == 0)
+	{
+		gameOver = true;
 	}
 }
 
@@ -269,6 +284,8 @@ void BreakoutScene::update(float delta)
 		{
 			breaker->setPosition(currPos.x + 5, currPos.y);
 		}
+
+		//checkIfDead();
 	}
 }
 
