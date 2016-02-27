@@ -1,14 +1,19 @@
 #include "BreakoutScene.h"
+#include "SimpleAudioEngine.h"
 
+using namespace std;
+using namespace CocosDenshion;
 USING_NS_CC;
 
 Scene* BreakoutScene::createScene()
 {
 	// 'scene' is an autorelease object
 	auto scene = Scene::createWithPhysics();
-
+	//scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
+	
 	// 'layer' is an autorelease object
 	auto layer = BreakoutScene::create();
+	layer->SetPhysicsWorld(scene->getPhysicsWorld());
 
 	// add layer as a child to scene
 	scene->addChild(layer);
@@ -16,9 +21,6 @@ Scene* BreakoutScene::createScene()
 	// return the scene
 	return scene;
 }
-
-
-
 
 void BreakoutScene::initEnvironment()
 {
@@ -30,24 +32,61 @@ void BreakoutScene::initEnvironment()
 	leftWallSprite->setAnchorPoint(Vec2());
 	leftWallSprite->setPosition(0, 100);
 
+	auto physicsBody = PhysicsBody::createBox(Size(leftWallSprite->getContentSize().width, 
+												   leftWallSprite->getContentSize().height), 
+												   PhysicsMaterial(0.1f, 1.0f, 0.0f));
+	physicsBody->setDynamic(false);
+	physicsBody->setGravityEnable(false);
+	physicsBody->setCollisionBitmask(collisionBitMap::LEFT);
+	physicsBody->setContactTestBitmask(true);
+
+	leftWallSprite->setPhysicsBody(physicsBody);
+	
 	this->addChild(leftWallSprite, 0);
 
 	auto rightWallSprite = Sprite::create("wall_vertical.png");
 	rightWallSprite->setAnchorPoint(Vec2());
 	rightWallSprite->setPosition(880, 100);
 
+	physicsBody = PhysicsBody::createBox(Size(rightWallSprite->getContentSize().width,
+											  rightWallSprite->getContentSize().height), 
+											  PhysicsMaterial(0.1f, 1.0f, 0.0f));
+	physicsBody->setDynamic(false);
+	physicsBody->setGravityEnable(false);
+	physicsBody->setCollisionBitmask(collisionBitMap::RIGHT);
+	physicsBody->setContactTestBitmask(true);
+
+	rightWallSprite->setPhysicsBody(physicsBody);
 	this->addChild(rightWallSprite, 0);
 
 	auto topWallSprite = Sprite::create("wall_horizontal.png");
 	topWallSprite->setAnchorPoint(Vec2());
 	topWallSprite->setPosition(0, 630);
 
+	physicsBody = PhysicsBody::createBox(Size(topWallSprite->getContentSize().width,
+											  topWallSprite->getContentSize().height), 
+											  PhysicsMaterial(0.1f, 1.0f, 0.0f));
+	physicsBody->setDynamic(false);
+	physicsBody->setGravityEnable(false);
+	physicsBody->setCollisionBitmask(collisionBitMap::TOP);
+	physicsBody->setContactTestBitmask(true);
+
+	topWallSprite->setPhysicsBody(physicsBody);
 	this->addChild(topWallSprite, 0);
 
 	auto bottomWallSprite = Sprite::create("wall_horizontal.png");
 	bottomWallSprite->setAnchorPoint(Vec2());
 	bottomWallSprite->setPosition(0, 100);
 
+	physicsBody = PhysicsBody::createBox(Size(bottomWallSprite->getContentSize().width,
+											  bottomWallSprite->getContentSize().height), 
+											  PhysicsMaterial(0.1f, 1.0f, 0.0f));
+	physicsBody->setDynamic(false);
+	physicsBody->setGravityEnable(false);
+	physicsBody->setCollisionBitmask(collisionBitMap::BOTTOM);
+	physicsBody->setContactTestBitmask(true);
+
+	bottomWallSprite->setPhysicsBody(physicsBody);
 	this->addChild(bottomWallSprite, 0);
 
 	///////////////
@@ -59,6 +98,12 @@ void BreakoutScene::initEnvironment()
 	lifeLabel->setPosition(10, 0);
 
 	this->addChild(lifeLabel, 1);
+
+	lifeValue = Label::createWithTTF(std::to_string(lifeCounter), "fonts/Marker Felt.ttf", 24);
+	lifeValue->setAnchorPoint(Vec2());
+	lifeValue->setPosition( 60, 0);
+
+	this->addChild(lifeValue, 2);
 
 	auto scoreLabel = Label::createWithTTF("Score: ", "fonts/Marker Felt.ttf", 24);
 	scoreLabel->setAnchorPoint(Vec2());
@@ -72,25 +117,6 @@ void BreakoutScene::initEnvironment()
 
 	this->addChild(scoreValue, 2);
 	
-	pLives = CCArray::create();
-	Sprite *life = Sprite::create("ball.png");
-	life->setAnchorPoint(Vec2());
-	life->setPosition(80, 0);
-	this->addChild(life);
-	pLives->addObject(life);
-
-	life = Sprite::create("ball.png");
-	life->setAnchorPoint(Vec2());
-	life->setPosition(120, 0);
-	this->addChild(life);
-	pLives->addObject(life);
-
-	life = Sprite::create("ball.png");
-	life->setAnchorPoint(Vec2());
-	life->setPosition(160, 0);
-	this->addChild(life);
-	pLives->addObject(life);
-
 	///////////////
 	//The following section is for creating/initializing the blocks to break
 	//
@@ -100,6 +126,7 @@ void BreakoutScene::initEnvironment()
 	int numColumns = 10;
 	int brickWidth = 80;
 	int brickLength = 25;
+	int brickTag = 10; //tags that will be used when destroying the bricks
 	Sprite* brick;
 	
 	for (int i = 0; i < numRows; i++)
@@ -122,8 +149,23 @@ void BreakoutScene::initEnvironment()
 			}
 			brick->setAnchorPoint(Vec2());
 			brick->setPosition(20 + (5 * (j + 1)) + (j * brickWidth), 605 - (i * brickLength) - (4 * i)); //handles the spacing for the bricks' position
-			_bricks->addObject(brick);
+			brick->setTag(brickTag);
+
+			physicsBody = PhysicsBody::createBox(Size(brick->getContentSize().width,
+													  brick->getContentSize().height), 
+													  PhysicsMaterial(0.1f, 1.0f, 0.0f));
+			physicsBody->setDynamic(false);
+			physicsBody->setGravityEnable(false);
+			physicsBody->setCollisionBitmask(brickTag);
+			physicsBody->setContactTestBitmask(true);
+
+			brick->setPhysicsBody(physicsBody);
+			
 			this->addChild(brick, 10);
+			bricksMap[brickTag] = brick;
+			brickTag++;
+
+			brickCount++;
 		}
 	}
 }
@@ -157,18 +199,37 @@ bool BreakoutScene::init()
 
 	//initializing the variables
 	//separated the initialization of the breaker and mrBall from the rest of the assets
-	_bricks = CCArray::create();
 	score = 0;
 
 	initEnvironment();
 
 	breaker = Sprite::create("breaker.png");
 	breaker->setPosition(450, 170);
-	this->addChild(breaker, 10);
+	
+	auto physicsBody = PhysicsBody::createBox(Size(breaker->getContentSize().width,
+										      breaker->getContentSize().height),
+											  PhysicsMaterial(0.1f, 1.0f, 0.0f));
+	physicsBody->setDynamic(false);
+	physicsBody->setGravityEnable(false);
+	physicsBody->setCollisionBitmask(collisionBitMap::BREAKER);
+	physicsBody->setContactTestBitmask(true);
+
+	breaker->setPhysicsBody(physicsBody);
+	this->addChild(breaker);
 
 	mrBall = Sprite::create("ball.png");
 	mrBall->setPosition(450, 300);
-	this->addChild(mrBall, 10);
+	
+	physicsBody = PhysicsBody::createBox(Size(mrBall->getContentSize().width,
+											  mrBall->getContentSize().height),
+											  PhysicsMaterial(0.1f, 1.0f, 0.0f));
+	physicsBody->setDynamic(true);
+	physicsBody->setGravityEnable(false);
+	physicsBody->setCollisionBitmask(collisionBitMap::BREAKER);
+	physicsBody->setContactTestBitmask(true);
+
+	mrBall->setPhysicsBody(physicsBody);
+	this->addChild(mrBall);
 	move_horizontal = horizontalDirection::LEFT;
 	move_vertical = verticalDirection::DOWN;
 
@@ -176,6 +237,9 @@ bool BreakoutScene::init()
 	isRightPressed = false;
 	isPaused = true;
 
+	auto audio = CocosDenshion::SimpleAudioEngine::getInstance();
+	audio->preloadBackgroundMusic("Happy Virus.mp3");
+	audio->playBackgroundMusic("Happy Virus.mp3");
 	auto keyListener = EventListenerKeyboard::create();
 	keyListener->onKeyPressed = [=](EventKeyboard::KeyCode code, Event *event)->void{
 		Vec2 currPos = breaker->getPosition();
@@ -199,6 +263,11 @@ bool BreakoutScene::init()
 		}
 	};
 
+	auto contactListener = EventListenerPhysicsContact::create();
+	contactListener->onContactBegin = CC_CALLBACK_1(BreakoutScene::onCollision, this);
+	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener, this);
+
+
 	keyListener->onKeyReleased = [=](EventKeyboard::KeyCode code, Event *event) {
 		switch (code)
 		{
@@ -212,12 +281,83 @@ bool BreakoutScene::init()
 				break;
 		}
 	};
-
 	this->_eventDispatcher->addEventListenerWithSceneGraphPriority(keyListener, this);
 
 	this->scheduleUpdate();
 	return true;
 
+}
+
+
+//Code for detecting collisions
+bool BreakoutScene::onCollision(PhysicsContact &contact)
+{
+	bool hasCollided = false;
+	PhysicsBody *a = contact.getShapeA()->getBody();
+	PhysicsBody *b = contact.getShapeB()->getBody();
+
+	if (collisionBitMap::LEFT == a->getCollisionBitmask() || collisionBitMap::LEFT == b->getCollisionBitmask() ||
+		collisionBitMap::RIGHT == a->getCollisionBitmask() || collisionBitMap::RIGHT == b->getCollisionBitmask())
+	{
+		changeBallDirection(false);
+		hasCollided = true;
+	}
+	else if (collisionBitMap::TOP == a->getCollisionBitmask() || collisionBitMap::TOP == b->getCollisionBitmask() ||
+			 collisionBitMap::BREAKER == a->getCollisionBitmask() || collisionBitMap::BREAKER == b->getCollisionBitmask())
+	{
+		changeBallDirection(true);
+		hasCollided = true;
+	}
+	else if (collisionBitMap::BOTTOM == a->getCollisionBitmask() || collisionBitMap::BOTTOM == b->getCollisionBitmask())
+	{
+		lifeCounter--;
+		lifeValue->setString(std::to_string(lifeCounter));
+		hasCollided = true;
+		if (lifeCounter == 0)
+		{
+			gameOver = true;
+		}
+	}
+
+	for (map<int, Sprite*>::iterator brickIterator = bricksMap.begin(); brickIterator != bricksMap.end(); ++brickIterator)
+	{
+		if (brickIterator->first == a->getCollisionBitmask() || brickIterator->first == b->getCollisionBitmask())
+		{
+			this->removeChildByTag(brickIterator->first);
+			score += 150;
+			scoreValue->setString(std::to_string(score));
+			brickCount--;
+		}
+	}
+
+
+	return hasCollided;
+}
+
+void BreakoutScene::changeBallDirection(bool changeVerticalDirection)
+{
+	if (changeVerticalDirection)
+	{
+		if (move_vertical == verticalDirection::UP)
+		{
+			move_vertical = verticalDirection::DOWN;
+		}
+		else
+		{
+			move_vertical = verticalDirection::UP;
+		}
+	}
+	else
+	{
+		if (move_horizontal == horizontalDirection::LEFT)
+		{
+			move_horizontal = horizontalDirection::RIGHT;
+		}
+		else
+		{
+			move_horizontal = horizontalDirection::LEFT;
+		}
+	}
 }
 
 void BreakoutScene::moveBall()
@@ -250,12 +390,13 @@ void BreakoutScene::moveBall()
 void BreakoutScene::checkIfDead()
 {
 	Vec2 ballPos = mrBall->getPosition();
-	if (ballPos.y < 150)
+	if (ballPos.y < 140)
 	{
-		pLives->removeLastObject();
 		mrBall->setPosition(450, 300);
+		lifeCounter--;
+		lifeValue->setString(std::to_string(lifeCounter));
 	}
-	if (pLives->count() == 0)
+	if (lifeCounter == 0)
 	{
 		gameOver = true;
 	}
@@ -263,12 +404,21 @@ void BreakoutScene::checkIfDead()
 
 void BreakoutScene::update(float delta)
 {
+	auto audio = SimpleAudioEngine::getInstance();
+	if (!audio->isBackgroundMusicPlaying())
+	{
+		audio->rewindBackgroundMusic();
+	}
 	if (gameOver)
 	{
-		Label *gameOverLabel = Label::create("Game over", "fonts/Marker Felt.ttf", 30);
+		Label *gameOverLabel = Label::create("Game over", "fonts/Marker Felt.ttf", 40);
 		gameOverLabel->setAnchorPoint(Vec2());
-		gameOverLabel->setPosition(450, 310);
+		gameOverLabel->setPosition(450, 280);
 
+		if (brickCount == 0)
+		{
+			gameOverLabel->setString("You Win!");
+		}
 		this->addChild(gameOverLabel, 20);
 	}
 	else if (!isPaused)
@@ -284,8 +434,24 @@ void BreakoutScene::update(float delta)
 		{
 			breaker->setPosition(currPos.x + 5, currPos.y);
 		}
+		checkIfDead();
 
-		//checkIfDead();
+		if (brickCount < 40 && BALLSTEP >= 25)
+		{
+			BALLSTEP = 3;
+		}
+		if (brickCount < 25 && BALLSTEP >= 15)
+		{
+			BALLSTEP = 4;
+		}
+		if (brickCount < 15)
+		{
+			BALLSTEP = 5;
+		}
+		if (brickCount == 0)
+		{
+			gameOver = true;
+		}
 	}
 }
 
@@ -300,6 +466,7 @@ void BreakoutScene::menuCloseCallback(Ref* pSender)
 
 BreakoutScene::BreakoutScene()
 {
+
 }
 
 

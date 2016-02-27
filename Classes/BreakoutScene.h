@@ -7,15 +7,19 @@ USING_NS_CC;
 class BreakoutScene : public cocos2d::Layer
 {
 private:
-	CCArray *pLives;
+	int lifeCounter = 3;
 	int move_horizontal;
 	int move_vertical;
-	int score;
+	int score = 0;
+	int brickCount = 0;
+	int BALLSTEP = 2;
+	
 	Label* scoreValue;
+	Label* lifeValue;
 	Sprite *mrBall;
 	Sprite *breaker;
 
-	int BALLSTEP = 2;
+	std::map<int, Sprite*> bricksMap;
 
 	bool isLeftPressed;
 	bool isRightPressed;
@@ -30,9 +34,13 @@ private:
 	{
 		enum type{ UP = 0, DOWN = 1};
 	};
-protected:
-	cocos2d::CCArray *_bricks;
-	cocos2d::CCArray *_ball;
+	struct collisionBitMap
+	{
+		enum type{ LEFT = 0, RIGHT = 1, TOP = 2, BOTTOM = 3, BREAKER = 4, BALL = 5};
+	};
+
+	PhysicsWorld *sceneWorld;
+	void SetPhysicsWorld(PhysicsWorld *world) { sceneWorld = world; };
 public:
 	static cocos2d::Scene* createScene();
 
@@ -52,7 +60,13 @@ public:
 
 	void moveBall();
 
+	void collide();
+
 	void checkIfDead();
+
+	void changeBallDirection(bool changeVerticalDirection); //used vertical just to distinguish vertical and horizontal
+
+	bool onCollision(PhysicsContact &contact);
 
 	BreakoutScene();
 	~BreakoutScene();
